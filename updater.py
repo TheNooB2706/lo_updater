@@ -1,11 +1,12 @@
 import requests
 import subprocess
 import re
+import pathlib
 from bs4 import BeautifulSoup as bs
 from packaging import version
 
 STABLE_CHECK_URL = "https://download.documentfoundation.org/libreoffice/stable/"
-FILE_SAVE_LOCATION = "~/Downloads/libreoffice_updater/"
+FILE_SAVE_LOCATION = str(pathlib.Path("~/Downloads/libreoffice_updater/").expanduser())+"/"
 
 class Updater:
     def __init__(self, no_check_update=False):
@@ -59,7 +60,7 @@ class Updater:
     
     @staticmethod
     def remove_installed(target_version: str, dry_run=False):
-        command = ["apt", "remove", f"libreoffice{target_version}*", f"libobasis{target_version}*"]
+        command = ["sudo", "apt", "remove", f"libreoffice{target_version}*", f"libobasis{target_version}*"]
         if dry_run:
             command.append("--dry-run")
         
@@ -95,11 +96,26 @@ class Updater:
         sha256hash = hashcontent.text.split()[0]
         return sha256hash
     
+    def extract_package(self):
+        command = ["tar", "zxvf", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz", "-C", FILE_SAVE_LOCATION, "--strip-components=1"]
+        
+        extract_execution = subprocess.run(command, check=True)
+        extract_execution.check_returncode()
+        
+    def install_package(self, dry_run=False):
+        command = ["sudo", "dpkg", "-i", FILE_SAVE_LOCATION+"DEBS/*.deb"]
+        
+        if dry_run:
+            command.insert(2, "--dry-run")
+            
+        command = " ".join(command)
+            
+        install_execution = subprocess.run(command, check=True, shell=True)
+        install_execution.check_returncode()
+    
 if __name__ == "__main__":
     updater = Updater(no_check_update=True)
-    print(updater.latest_version)
-    print(updater.installed_version)
-    print(updater.multiple_installation)
-    print(updater.update_available)
-    print(updater.installed)
+    updater.latest_version = version.parse("7.5.0")
     updater.remove_installed("7.5", dry_run=True)
+    updater.extract_package()
+    updater.install_package(dry_run=True)
