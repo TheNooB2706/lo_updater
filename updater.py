@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup as bs
 from packaging import version
 
 STABLE_CHECK_URL = "https://download.documentfoundation.org/libreoffice/stable/"
+FILE_SAVE_LOCATION = "~/Downloads/libreoffice_updater/"
 
 class Updater:
     def __init__(self, no_check_update=False):
@@ -57,7 +58,7 @@ class Updater:
         return [version.parse(i) for i in installed]
     
     @staticmethod
-    def remove_installed(target_version, dry_run=False):
+    def remove_installed(target_version: str, dry_run=False):
         command = ["apt", "remove", f"libreoffice{target_version}*", f"libobasis{target_version}*"]
         if dry_run:
             command.append("--dry-run")
@@ -65,6 +66,34 @@ class Updater:
         execution = subprocess.run(command, check=True)
         execution.check_returncode()
     
+    def download_debs(self, no_check_update=False):
+        if not no_check_update:
+            if self.update_available:
+                dllink = f"{STABLE_CHECK_URL}/{self.latest_version.public}/deb/x86_64/LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"
+            else:
+                return "Already at latest version!"
+        else:
+            dllink = f"{STABLE_CHECK_URL}/{self.latest_version.public}/deb/x86_64/LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"
+            
+        sha256hash = get_sha256_hash(dllink)
+        
+        wget_command = ["wget", dllink, "-P", FILE_SAVE_LOCATION]
+        dl_execution = subprocess.run(wget_command, check=True)
+        dl_execution.check_returncode()
+        
+        downloaded_hash = subprocess.run(["sha256sum", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"], capture_output=True).stdout.decode().split()[0]
+        
+        if sha256hash == downloaded_hash:
+            return "Download complete"
+        else:
+            return "Checksum mismatch"
+    
+    @staticmethod
+    def get_sha256_hash(download_link):
+        hashlink = download_link + ".sha256"
+        hashcontent = requests.get(hashlink)
+        sha256hash = hashcontent.text.split()[0]
+        return sha256hash
     
 if __name__ == "__main__":
     updater = Updater(no_check_update=True)
