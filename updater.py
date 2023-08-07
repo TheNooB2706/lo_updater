@@ -2,6 +2,7 @@ import requests
 import subprocess
 import re
 import pathlib
+import os
 from bs4 import BeautifulSoup as bs
 from packaging import version
 
@@ -28,6 +29,14 @@ class Updater:
             
         if max(self.installed_version) < self.latest_version:
             self.update_available = True
+
+        self.create_dl_folder()
+
+    @staticmethod
+    def create_dl_folder(dry_run=False):
+        if not dry_run:
+            if not os.path.exists(FILE_SAVE_LOCATION):
+                os.makedirs(FILE_SAVE_LOCATION)
 
     @staticmethod
     def fetch_page(url):
@@ -67,7 +76,7 @@ class Updater:
         execution = subprocess.run(command, check=True)
         execution.check_returncode()
     
-    def download_debs(self, no_check_update=False):
+    def download_debs(self, no_check_update=False, dry_run=False):
         if not no_check_update:
             if self.update_available:
                 dllink = f"{STABLE_CHECK_URL}/{self.latest_version.public}/deb/x86_64/LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"
@@ -76,18 +85,23 @@ class Updater:
         else:
             dllink = f"{STABLE_CHECK_URL}/{self.latest_version.public}/deb/x86_64/LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"
             
-        sha256hash = get_sha256_hash(dllink)
+        sha256hash = self.get_sha256_hash(dllink)
         
-        wget_command = ["wget", dllink, "-P", FILE_SAVE_LOCATION]
-        dl_execution = subprocess.run(wget_command, check=True)
-        dl_execution.check_returncode()
-        
-        downloaded_hash = subprocess.run(["sha256sum", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"], capture_output=True).stdout.decode().split()[0]
-        
-        if sha256hash == downloaded_hash:
-            return "Download complete"
+        if not dry_run:
+            wget_command = ["wget", dllink, "-P", FILE_SAVE_LOCATION]
+            dl_execution = subprocess.run(wget_command, check=True)
+            dl_execution.check_returncode()
+            
+            downloaded_hash = subprocess.run(["sha256sum", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"], capture_output=True).stdout.decode().split()[0]
+            
+            if sha256hash == downloaded_hash:
+                return "Download complete"
+            else:
+                return "Checksum mismatch"
         else:
-            return "Checksum mismatch"
+            wget_command = ["wget", "--spider", dllink]
+            dl_execution = subprocess.run(wget_command, check=True)
+            return "Download complete"
     
     @staticmethod
     def get_sha256_hash(download_link):
@@ -96,8 +110,11 @@ class Updater:
         sha256hash = hashcontent.text.split()[0]
         return sha256hash
     
-    def extract_package(self):
-        command = ["tar", "zxvf", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz", "-C", FILE_SAVE_LOCATION, "--strip-components=1"]
+    def extract_package(self, dry_run=False):
+        if dry_run:
+            command = ["tar", "-tf", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"]
+        else:
+            command = ["tar", "zxvf", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz", "-C", FILE_SAVE_LOCATION, "--strip-components=1"]
         
         extract_execution = subprocess.run(command, check=True)
         extract_execution.check_returncode()
@@ -114,8 +131,11 @@ class Updater:
         install_execution.check_returncode()
     
 if __name__ == "__main__":
-    updater = Updater(no_check_update=True)
-    updater.latest_version = version.parse("7.5.0")
-    updater.remove_installed("7.5", dry_run=True)
-    updater.extract_package()
-    updater.install_package(dry_run=True)
+    updater = Updater()
+    print(updater.update_available)
+    updater.latest_version = version.parse("7.5.5")
+    updater.download_debs(no_check_update=True, dry_run=True)
+    #updater.latest_version = version.parse("7.5.0")
+    #updater.remove_installed("7.5", dry_run=True)
+    updater.extract_package(dry_run=True)
+    #updater.install_package(dry_run=True)
