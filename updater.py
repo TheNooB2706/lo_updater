@@ -10,16 +10,22 @@ STABLE_CHECK_URL = "https://download.documentfoundation.org/libreoffice/stable/"
 FILE_SAVE_LOCATION = str(pathlib.Path("~/Downloads/libreoffice_updater/").expanduser())+"/"
 
 class Updater:
-    def __init__(self, no_check_update=False):
+    def __init__(self, no_check_update=False, dry_run=False):
         self.multiple_installation = False
         self.installed = False
         self.update_available = False
         
+        self.check_update(no_check_update=no_check_update)
+
+        self.create_dl_folder(dry_run=dry_run)
+
+    def check_update(self, no_check_update=False):
         if not no_check_update:
-            versions = self.contents_to_version(self.fetch_page(STABLE_CHECK_URL))
-            self.latest_version = max(versions)
+            self.web_versions = self.contents_to_version(self.fetch_page(STABLE_CHECK_URL))
+            self.latest_version = max(self.web_versions)
         else:
             self.latest_version = version.parse("0")
+            self.versions = []
         self.installed_version = self.check_current_version()
         if len(self.installed_version) > 1:
             self.multiple_installation = True
@@ -29,8 +35,7 @@ class Updater:
             
         if max(self.installed_version) < self.latest_version:
             self.update_available = True
-
-        self.create_dl_folder()
+            self.versions = [i for i in self.web_versions if i>max(self.installed_version)]
 
     @staticmethod
     def create_dl_folder(dry_run=False):
@@ -129,6 +134,9 @@ class Updater:
             
         install_execution = subprocess.run(command, check=True, shell=True)
         install_execution.check_returncode()
+
+    def set_install_version(self, version):
+        self.latest_version = version
     
 if __name__ == "__main__":
     updater = Updater()
