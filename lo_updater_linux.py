@@ -82,7 +82,16 @@ def download_process(lo_updater, args):
         selected_version = int(selected_version)
         print(f"LibreOffice version {lo_updater.versions[selected_version-1].public} will be downloaded to {updater.FILE_SAVE_LOCATION}\n")
         lo_updater.set_install_version(lo_updater.versions[selected_version-1])
-        lo_updater.download_debs(dry_run=args.dry_run)
+        
+        while True:
+            try:
+                lo_updater.download_debs(dry_run=args.dry_run)
+                return
+            except updater.ChecksumMismatch as e:
+                print(f"Archive downloaded with mismatched checksum ({e.downloaded_checksum} instead of {e.expected_checksum})")
+                retry = prompt_selection("Redownload archive?", ["y", "n"], default="y")
+                if retry == "n":
+                    raise updater.ChecksumMismatch(e.expected_checksum, e.downloaded_checksum)
 
 def removal_process(lo_updater, args):
     print_installed_version_list(lo_updater)
@@ -106,6 +115,9 @@ if args.check_only:
     check_and_print_update(lo_updater)
 elif args.download_only:
     check_and_print_update(lo_updater)
-    download_process(lo_updater, args)
+    try:
+        download_process(lo_updater, args)
+    except updater.ChecksumMismatch:
+        print("Archive download failed. Quitting.")
 elif args.remove_only:
     removal_process(lo_updater, args)

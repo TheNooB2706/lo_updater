@@ -102,7 +102,7 @@ class Updater:
             if sha256hash == downloaded_hash:
                 return "Download complete"
             else:
-                return "Checksum mismatch"
+                raise ChecksumMismatch(sha256hash, downloaded_hash)
         else:
             wget_command = ["wget", "--spider", dllink]
             dl_execution = subprocess.run(wget_command, check=True)
@@ -137,13 +137,23 @@ class Updater:
 
     def set_install_version(self, version):
         self.latest_version = version
+
+# Error
+
+class ChecksumMismatch(Exception):
+    """Exception raised for error in downloaded archive"""
+    def __init__(self, expected_checksum, downloaded_checksum):
+        self.expected_checksum = expected_checksum
+        self.downloaded_checksum = downloaded_checksum
+        super().__init__(f"Expected {expected_checksum}, got {downloaded_checksum}.")
     
 if __name__ == "__main__":
-    updater = Updater()
-    print(updater.update_available)
-    updater.latest_version = version.parse("7.5.5")
-    updater.download_debs(no_check_update=True, dry_run=True)
+    # updater = Updater()
+    # print(updater.update_available)
+    # updater.latest_version = version.parse("7.5.5")
+    # updater.download_debs(no_check_update=True, dry_run=True)
     #updater.latest_version = version.parse("7.5.0")
     #updater.remove_installed("7.5", dry_run=True)
-    updater.extract_package(dry_run=True)
+    #updater.extract_package(dry_run=True)
     #updater.install_package(dry_run=True)
+    raise ChecksumMismatch("abcd","efgh")
