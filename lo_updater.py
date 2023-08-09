@@ -2,6 +2,7 @@ import updater
 import argparse
 import sys
 import pathlib
+import os
 
 argparser = argparse.ArgumentParser(epilog="GitHub project page: ")
 
@@ -9,6 +10,7 @@ operation = argparser.add_mutually_exclusive_group()
 operation.add_argument("--check-only", "-c", help="Only check if there is update available.", action="store_true")
 operation.add_argument("--download-only", help="Skip removal of old version and installation process, only download if there is newer version.", action="store_true")
 operation.add_argument("--remove-only", help="Remove existing installation of LibreOffice.", action="store_true")
+operation.add_argument("--install-only", help="Install downloaded installation archive. Take path to the archive as argument.", metavar="ARCHIVE_FILE", type=pathlib.Path)
 
 argparser.add_argument("--use-latest-version", help="Update to the latest version instead of prompting which version to download if there are multiple new versions.", action="store_true")
 argparser.add_argument("--dry-run", help="", default=False, action="store_true")
@@ -20,6 +22,12 @@ print(args) #TODO Remove debug print
 
 if args.dl_dir is not None:
     updater.FILE_SAVE_LOCATION = str(args.dl_dir.absolute()) + "/"
+
+if args.install_only is not None:
+    if not args.install_only.exists():
+        argparser.error(f"The provided archive {args.install_only.absolute()} does not exist.")
+    else:
+        updater.FILE_SAVE_LOCATION = str(args.install_only.parent.absolute()) + "/"
 
 # Generic functions
 
@@ -67,6 +75,21 @@ def prompt_selection(prompt, valid_selections, default=None):
                 print("Invalid option selected, re-enter your choice.")
     return selection
 
+def rename_old_file(filepath: pathlib.Path):
+    i = 1
+    target = filepath.parent / (filepath.name + f".{i}")
+    while target.exists():
+        i += 1
+        target = filepath.parent / (filepath.name + f".{i}")
+    return filepath.rename(target)
+
+def check_old_leftover_file():
+    extracted_path = pathlib.Path(updater.FILE_SAVE_LOCATION+"DEBS")
+    if extracted_path.exists():
+        print("Old extracted archive folder exists, renaming old folder...")
+        oldfile = rename_old_file(extracted_path)
+        print(f"Renamed {extracted_path.absolute()} to {oldfile.absolute()}.")
+
 # Process function
 
 def check_and_print_update(lo_updater):
@@ -109,6 +132,25 @@ def removal_process(lo_updater, args):
         remove_version = f"{selected_version.major}.{selected_version.minor}"
         lo_updater.remove_installed(remove_version, dry_run=args.dry_run)
 
+def install_process(lo_updater, args):
+    if args.install_only:
+        dry_run_extraction = args.dry_run
+        if args.dry_run:
+            print("You have enabled dry run option. Do you want to extract the archive to the disk? \
+Extracting it allows you to dry run the dpkg installation command. If you choose to not extract, the simulation will only run until listing the content of the archive.")
+            extract_even_with_dry_run = prompt_selection("Extract archive for real?", ["y","n"], default="n")
+            if extract_even_with_dry_run == "y":
+                check_old_leftover_file()
+                dry_run_extraction = False
+        lo_updater.extract_package(path=args.install_only.absolute(), dry_run=dry_run_extraction)
+        if not dry_run_extraction:
+            lo_updater.install_package(dry_run=args.dry_run)
+    else:
+        if not args.dry_run:
+            check_old_leftover_file()
+            lo_updater.extract_package()
+            lo_updater.install_package()
+
 lo_updater = updater.Updater(no_check_update=True, dry_run=args.dry_run)
 
 if args.check_only:
@@ -121,3 +163,5 @@ elif args.download_only:
         print("Archive download failed. Quitting.")
 elif args.remove_only:
     removal_process(lo_updater, args)
+elif args.install_only:
+    install_process(lo_updater, args)
