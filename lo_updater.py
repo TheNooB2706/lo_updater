@@ -18,7 +18,7 @@ argparser.add_argument("--dry-run", help="", default=False, action="store_true")
 argparser.add_argument("--dl-dir", "-d", help="Use custom directory for downloading packages.", default=None, type=pathlib.Path)
 
 args = argparser.parse_args()
-print(args) #TODO Remove debug print
+#print(args) #TODO Remove debug print
 
 if args.dl_dir is not None:
     updater.FILE_SAVE_LOCATION = str(args.dl_dir.absolute()) + "/"
@@ -119,7 +119,14 @@ def download_process(lo_updater, args):
 def removal_process(lo_updater, args):
     print_installed_version_list(lo_updater)
     if lo_updater.multiple_installation:
-        selected_version = prompt_selection("Select version to remove", range(1, len(lo_updater.installed_version)+1))
+        version_selection = [i for i in range(1, len(lo_updater.installed_version)+1)]
+        version_selection.append("skip")
+        selected_version = prompt_selection("Select version to remove", version_selection)
+        if selected_version == "skip":
+            selected_version = None
+        else:
+            selected_version = int(selected_version)
+            selected_version = lo_updater.installed_version[selected_version-1]
     elif lo_updater.installed:
         remove_confirm = prompt_selection("Are you sure you want to continue with the removal?", ["y","n"], default="n")
         if remove_confirm == "y":
@@ -128,6 +135,7 @@ def removal_process(lo_updater, args):
             selected_version = None
     else:
         selected_version = None
+        print("Skipping removal step.\n")
     if selected_version is not None:
         remove_version = f"{selected_version.major}.{selected_version.minor}"
         lo_updater.remove_installed(remove_version, dry_run=args.dry_run)
@@ -142,14 +150,22 @@ Extracting it allows you to dry run the dpkg installation command. If you choose
             if extract_even_with_dry_run == "y":
                 check_old_leftover_file()
                 dry_run_extraction = False
+        else:
+            check_old_leftover_file()
+        print("Extracting installation archive...\n")
         lo_updater.extract_package(path=args.install_only.absolute(), dry_run=dry_run_extraction)
         if not dry_run_extraction:
+            print("\nInstalling packages...\n")
             lo_updater.install_package(dry_run=args.dry_run)
     else:
         if not args.dry_run:
             check_old_leftover_file()
+            print("Extracting installation archive...\n")
             lo_updater.extract_package()
+            print("\nInstalling packages...\n")
             lo_updater.install_package()
+        else:
+            print("Dry run is enabled, skipping extraction and installation since archive is not downloaded.")
 
 lo_updater = updater.Updater(no_check_update=True, dry_run=args.dry_run)
 
@@ -165,3 +181,12 @@ elif args.remove_only:
     removal_process(lo_updater, args)
 elif args.install_only:
     install_process(lo_updater, args)
+else:
+    check_and_print_update(lo_updater)
+    if lo_updater.update_available:
+        try:
+            download_process(lo_updater, args)
+        except updater.ChecksumMismatch:
+            print("Archive download failed. Quitting.")
+        removal_process(lo_updater, args)
+        install_process(lo_updater, args)

@@ -32,7 +32,9 @@ class Updater:
             self.installed = True
         elif len(self.installed_version) == 1:
             self.installed = True
-            
+        else:
+            self.installed_version.append(version.parse("0"))
+
         if max(self.installed_version) < self.latest_version:
             self.update_available = True
             self.versions = [i for i in self.web_versions if i>max(self.installed_version)]
