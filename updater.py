@@ -115,11 +115,19 @@ class Updater:
         sha256hash = hashcontent.text.split()[0]
         return sha256hash
     
-    def extract_package(self, dry_run=False):
+    def extract_package(self, path:str=None, dry_run=False):
         if dry_run:
-            command = ["tar", "-tf", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz"]
+            command = ["tar", "-tf"]
+            if path is None:
+                command.append(FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz")
+            else:
+                command.append(path)
         else:
-            command = ["tar", "zxvf", FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz", "-C", FILE_SAVE_LOCATION, "--strip-components=1"]
+            command = ["tar", "zxvf"]
+            if path is None:
+                command += [FILE_SAVE_LOCATION+f"LibreOffice_{self.latest_version.public}_Linux_x86-64_deb.tar.gz", "-C", FILE_SAVE_LOCATION, "--strip-components=1"]
+            else:
+                command += [path, "-C", FILE_SAVE_LOCATION, "--strip-components=1"]
         
         extract_execution = subprocess.run(command, check=True)
         extract_execution.check_returncode()
