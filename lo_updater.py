@@ -4,7 +4,7 @@ import sys
 import pathlib
 import os
 
-argparser = argparse.ArgumentParser(epilog="GitHub project page: ")
+argparser = argparse.ArgumentParser(prog="lo_updater", description="A tool for managing official LibreOffice installation on Debian.", epilog="GitHub project page: https://github.com/TheNooB2706/lo_updater")
 
 operation = argparser.add_mutually_exclusive_group()
 operation.add_argument("--check-only", "-c", help="Only check if there is update available.", action="store_true")
