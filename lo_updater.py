@@ -4,18 +4,23 @@ import sys
 import pathlib
 import os
 
+# Version string
+__version__ = "0.1.0"
+
 argparser = argparse.ArgumentParser(prog="lo_updater", description="A tool for managing official LibreOffice installation on Debian.", epilog="GitHub project page: https://github.com/TheNooB2706/lo_updater")
 
 operation = argparser.add_mutually_exclusive_group()
-operation.add_argument("--check-only", "-c", help="Only check if there is update available.", action="store_true")
-operation.add_argument("--download-only", help="Skip removal of old version and installation process, only download if there is newer version.", action="store_true")
-operation.add_argument("--remove-only", help="Remove existing installation of LibreOffice.", action="store_true")
-operation.add_argument("--install-only", help="Install downloaded installation archive. Take path to the archive as argument.", metavar="ARCHIVE_FILE", type=pathlib.Path)
+operation.add_argument("--check-only", "-c", help="only check if there is update available", action="store_true")
+operation.add_argument("--download-only", help="skip removal of old version and installation process, only download if there is newer version", action="store_true")
+operation.add_argument("--remove-only", help="remove existing installation of LibreOffice", action="store_true")
+operation.add_argument("--install-only", help="install downloaded installation archive. Take path to the archive as argument", metavar="ARCHIVE_FILE", type=pathlib.Path)
 
-argparser.add_argument("--use-latest-version", help="Update to the latest version instead of prompting which version to download if there are multiple new versions.", action="store_true")
-argparser.add_argument("--dry-run", help="", default=False, action="store_true")
+argparser.add_argument("--use-latest-version", help="update to the latest version instead of prompting which version to download if there are multiple new versions", action="store_true")
+argparser.add_argument("--dry-run", help="only simulate the installation process", default=False, action="store_true")
 
-argparser.add_argument("--dl-dir", "-d", help="Use custom directory for downloading packages.", default=None, type=pathlib.Path)
+argparser.add_argument("--dl-dir", "-d", help="use custom directory for downloading packages", default=None, type=pathlib.Path)
+
+argparser.add_argument("--version", action="version", version=f"lo_updater {__version__}")
 
 args = argparser.parse_args()
 #print(args) #TODO Remove debug print
